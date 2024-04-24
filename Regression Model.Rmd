@@ -1,0 +1,103 @@
+---
+title: "Regression Model"
+author: "Jackson Pham"
+date: "2024-04-23"
+output: html_document
+---
+
+**Executive Summary**
+
+This analysis uses the mtcars dataset to investigate the impact of transmission type on fuel efficiency, measured in miles per gallon (MPG). The results confirm that manual transmissions generally achieve higher MPG than automatics, with a coding of 0 for automatic transmission and 1 for manual transmission. Supported by statistical modeling and diagnostics, these findings underscore the fuel efficiency advantages of manual transmissions, providing valuable insights for consumers and the automotive industry. Conclusively, our analysis suggests that cars with manual transmission add an average of `14.079 + (-4.141) * wt` MPG compared to automatic transmission cars.
+
+```{r, echo = TRUE}
+# Load libraries
+library(ggplot2)
+```
+
+**Exploratory Data Analysis**
+
+```{r, echo = TRUE}
+# Load the mtcars dataset
+cars <- mtcars
+
+# Convert the values in "am" column, 1 for automatic, and 0 for manual
+cars$am <- factor(ifelse(cars$am == 0, "Automatic", "Manual"))
+
+# View the dataset
+head(cars)
+```
+
+**Inference**
+
+```{r, echo = TRUE}
+# Simple t.test on the mtcars data
+cars_t_test <- t.test(mpg ~ am, data = cars)
+cars_t_test$p.value
+```
+
+With a p-value of 0.001373638 from the t-test, we reject the null hypothesis, indicating a significant difference in miles per gallon (mpg) between manual and automatic transmission.
+
+```{r, echo = TRUE}
+# Perform some basic EDA. Plot the distribution of MPG for cars with manual and automatic transmissions to see if there's a visible difference.
+cars_plot <- ggplot(cars, aes(x = factor(am), y = mpg, fill = factor(am))) + 
+  geom_boxplot() +
+  labs(x = "Transmission (0 = Automatic, 1 = Manual)", y = "Miles per Gallon", fill = "Transmission") +
+  theme_minimal()
+
+# Print the plot
+cars_plot
+```
+
+From the plot, it is evident that there is a significant difference in miles per gallon (MPG) between cars with automatic transmissions and those with manual transmissions.
+
+**Statistical Modeling**
+
+```{r, echo = TRUE}
+# Full regression model to help finding the step model in the next step
+full_fit <- lm(mpg ~ . , data = cars)
+
+# Using step model to find the best fit regression
+stepModel <- step(full_fit, k=log(nrow(cars)))
+
+# Extract coefficients
+summary(stepModel)
+```
+
+Summary of the `lm(formula = mpg ~ wt + qsec + am, data = cars)` shows that it have 3 significant variable of wt, qsec, and am that the Adjusted R-squared value is 0.8336, which means that the model can explain about 83% of the variance of the MPG variable. 
+
+```{r, echo = TRUE}
+# Further analysis of the regression model between wt and am
+full_fit_adjusted <- lm(mpg ~ wt + qsec + am + wt:am, data = cars)
+
+# Extract coefficients
+summary(full_fit_adjusted)
+```
+
+Including the interaction term `wt:am` in the model `lm(formula = mpg ~ wt + qsec + am, data = cars)` is essential to determine if the effect of a car's weight on fuel efficiency varies with the type of transmission. The significance of this interaction indicates that the impact of weight on MPG changes depending on whether the car has a manual or automatic transmission.
+
+The best_fit model yield R-adjusted value of 88.04% which means that the model can explain about 88% of the variance in MPG variable.
+
+```{r, echo = TRUE}
+# Using anova to find the best fit model
+anova(full_fit_adjusted, full_fit)
+
+# Pick the best model mpg ~ wt + qsec + am + wt:am with the highest R-adjusted value
+summary(full_fit_adjusted)$coef
+```
+
+Based on the result coefficient of the best_fit model, we can conclude that car with manual transmission add `14.079 + (-4.141) * wt` MPG on average compare to automatic transmission car.
+
+**Residual Analysis and Diagnostics**
+
+```{r, echo = TRUE}
+# As for the Dfbetas, the measure of how much an observation has effected the estimate of a regression coefficient, this is the following result:
+sum((abs(dfbetas(full_fit_adjusted)))>1)
+```
+
+The `sum((abs(dfbetas(best_fit)))>1)` is qual to 0. Therefore, the above analyses meet all basic assumptions of linear regression and well answer the questions.
+
+```{r, echo = TRUE}
+# Plot statistical value
+par(mfrow = c(2, 2))
+plot(full_fit_adjusted)
+```
